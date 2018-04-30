@@ -93,7 +93,11 @@ trait Interpreter {
     case IsMember(tree: AvlTreeConstant, key: ByteArrayConstant, proof: ByteArrayConstant) =>
       val bv = tree.createVerifier(SerializedAdProof @@ proof.value)
       val res = bv.performOneOperation(Lookup(ADKey @@ key.value))
-      BooleanConstant.fromBoolean(res.isSuccess) // TODO should we also check res.get.isDefined
+      BooleanConstant.fromBoolean(res.isSuccess && res.get.isDefined)
+    case IsNotMember(tree: AvlTreeConstant, key: ByteArrayConstant, proof: ByteArrayConstant) =>
+      val bv = tree.createVerifier(SerializedAdProof @@ proof.value)
+      val res = bv.performOneOperation(Lookup(ADKey @@ key.value))
+      BooleanConstant.fromBoolean(res.isSuccess && res.get.isEmpty)
     case If(cond: EvaluatedValue[SBoolean.type], trueBranch, falseBranch) =>
       if (cond.value) trueBranch else falseBranch
 

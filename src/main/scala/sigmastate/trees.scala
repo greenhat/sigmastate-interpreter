@@ -361,6 +361,18 @@ case class IsMember(tree: Value[SAvlTree.type],
   override lazy val third = proof
 }
 
+/**
+  * Predicate which checks the non-membership proof of an element in a tree
+  */
+case class IsNotMember(tree: Value[SAvlTree.type],
+                    key: Value[SByteArray.type],
+                    proof: Value[SByteArray.type]) extends Relation3[SAvlTree.type, SByteArray.type, SByteArray.type] {
+  override lazy val first = tree
+  override lazy val second = key
+  override lazy val third = proof
+}
+
+
 
 case class If[T <: SType](condition: Value[SBoolean.type], trueBranch: Value[T], falseBranch: Value[T])
   extends Quadruple[SBoolean.type, T, T, T] {
