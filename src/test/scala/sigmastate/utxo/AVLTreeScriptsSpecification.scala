@@ -12,6 +12,54 @@ import sigmastate.lang.Terms._
 
 class AVLTreeScriptsSpecification extends SigmaTestingCommons {
 
+  property("avl tree - membership proof fo different key") {
+    // prover trying to cheat, providing proof for incorrect key
+
+    val prover = new ErgoProvingInterpreter
+    val verifier = new ErgoInterpreter
+
+    val pubkey = prover.dlogSecrets.head.publicImage
+
+    val avlProver = new BatchAVLProver[Digest32, Blake2b256.type](keyLength = 32, None)
+
+    val keys = (0 until 1000) map (i => Blake2b256(i.toString))
+    val key = keys.head
+    keys.foreach { key =>
+      avlProver.performOneOperation(Insert(ADKey @@ key, ADValue @@ key))
+    }
+    avlProver.generateProof()
+
+    val nonExistingKey = Blake2b256(key)
+    avlProver.performOneOperation(Lookup(ADKey @@ nonExistingKey))
+
+    val proof = avlProver.generateProof()
+    val digest = avlProver.digest
+
+    val treeData = new AvlTreeData(digest, 32, None)
+
+    val env = Map("key" -> key, "proof" -> proof)
+
+    val prop = IsNotMember(ExtractRegisterAs(Self, R3),
+      ByteArrayConstant(key),
+      ByteArrayConstant(proof))
+
+    val newBox1 = ErgoBox(10, pubkey)
+    val newBoxes = IndexedSeq(newBox1)
+
+    val spendingTransaction = ErgoTransaction(IndexedSeq(), newBoxes)
+
+    val s = ErgoBox(20, TrueLeaf, Map(R3 -> AvlTreeConstant(treeData)))
+
+    val ctx = ErgoContext(
+      currentHeight = 50,
+      lastBlockUtxoRoot = AvlTreeData.dummy,
+      boxesToSpend = IndexedSeq(),
+      spendingTransaction,
+      self = s)
+
+    prover.prove(prop, ctx, fakeMessage).isSuccess shouldBe false
+  }
+
   property("avl tree - non-membership proof") {
     val prover = new ErgoProvingInterpreter
     val verifier = new ErgoInterpreter
@@ -20,8 +68,11 @@ class AVLTreeScriptsSpecification extends SigmaTestingCommons {
 
     val avlProver = new BatchAVLProver[Digest32, Blake2b256.type](keyLength = 32, None)
 
-    val key = Blake2b256("hello world")
-    avlProver.performOneOperation(Insert(ADKey @@ key, ADValue @@ key))
+    val keys = (0 until 1000) map (i => Blake2b256(i.toString))
+    val key = keys.head
+    keys.foreach { key =>
+      avlProver.performOneOperation(Insert(ADKey @@ key, ADValue @@ key))
+    }
     avlProver.generateProof()
 
     val nonExistingKey = Blake2b256(key)
@@ -64,8 +115,11 @@ class AVLTreeScriptsSpecification extends SigmaTestingCommons {
 
     val avlProver = new BatchAVLProver[Digest32, Blake2b256.type](keyLength = 32, None)
 
-    val key = Blake2b256("hello world")
-    avlProver.performOneOperation(Insert(ADKey @@ key, ADValue @@ key))
+    val keys = (0 until 1000) map (i => Blake2b256(i.toString))
+    val key = keys.head
+    keys.foreach { key =>
+      avlProver.performOneOperation(Insert(ADKey @@ key, ADValue @@ key))
+    }
     avlProver.generateProof()
 
     avlProver.performOneOperation(Lookup(ADKey @@ key))
