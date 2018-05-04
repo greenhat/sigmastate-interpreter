@@ -36,8 +36,8 @@ class Rule110AltSpecification extends PropSpec
     val prover = new ErgoProvingInterpreter()
 
     val bitsInString = 31
-    val t = TrueLeaf
-    val f = FalseLeaf
+    val t = IntConstant(1)
+    val f = IntConstant(0)
 
     val indexCollection = new ConcreteCollection((0 until bitsInString).map(i => IntConstant(i)))
     val oldLayer = ExtractRegisterAs[SByteArray.type](ByIndex(Inputs, 0), R4)
