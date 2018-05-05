@@ -20,17 +20,54 @@ class Rule110AltSpecification extends PropSpec
   with GeneratorDrivenPropertyChecks
   with Matchers {
 
-  def calcRule110(left: Boolean, center: Boolean, right: Boolean): Boolean =
-    (left, center, right) match {
-      case (true, true, true) => false
-      case (true, true, false) => true
-      case (true, false, true) => true
-      case (true, false, false) => false
-      case (false, true, true) => true
-      case (false, true, false) => true
-      case (false, false, true) => true
-      case (false, false, false) => false
+  property("rule110 scala") {
+    case class Transaction(inputs: Seq[InputOutput], outputs: Seq[InputOutput]) {
+      def isCorrect: Boolean = inputs.forall(input => input.script(input, this))
     }
+    case class InputOutput(script: (InputOutput, Transaction) => Boolean, register: Seq[Byte])
+    val layerLength = 31
+
+    val rule110Script: (InputOutput, Transaction) => Boolean = { (input: InputOutput, tx: Transaction) =>
+      val oldLayer = input.register
+      val newLayer = tx.outputs.head.register
+      (0 until layerLength).forall { i =>
+        val output = newLayer(i)
+        val input0 = if (i == 0) oldLayer.last else oldLayer(i - 1)
+        val input1 = oldLayer(i)
+        val input2 = if (i == layerLength - 1) oldLayer.head else oldLayer(i + 1)
+        val oneBitRule110 = {
+          ((input0 == 1) && (input1 == 1) && (input2 == 1) && (output == 0)) ||
+            ((input0 == 1) && (input1 == 1) && (input2 == 0) && (output == 1)) ||
+            ((input0 == 1) && (input1 == 0) && (input2 == 1) && (output == 1)) ||
+            ((input0 == 1) && (input1 == 0) && (input2 == 0) && (output == 0)) ||
+            ((input0 == 0) && (input1 == 1) && (input2 == 1) && (output == 1)) ||
+            ((input0 == 0) && (input1 == 1) && (input2 == 0) && (output == 1)) ||
+            ((input0 == 0) && (input1 == 0) && (input2 == 1) && (output == 1)) ||
+            ((input0 == 0) && (input1 == 0) && (input2 == 0) && (output == 0))
+        }
+        val outputSctiptIsTheSame = tx.outputs.head.script == input.script
+        oneBitRule110 && outputSctiptIsTheSame
+      }
+    }
+
+    val layers = Seq(
+      Seq(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+      Seq(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+      Seq(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+      Seq(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+      Seq(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+      Seq(0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    ).map(_.map(_.toByte))
+
+    (0 until layers.length - 1).foreach { i =>
+      val tx = Transaction(
+        Seq(InputOutput(rule110Script, layers(i))),
+        Seq(InputOutput(rule110Script, layers(i + 1)))
+      )
+      require(tx.isCorrect)
+    }
+  }
+
 
   property("rule110") {
     val prover = new ErgoProvingInterpreter()
@@ -69,6 +106,6 @@ class Rule110AltSpecification extends PropSpec
     val proposition = AND(unchangedScript, rule110)
 
 
-
   }
+
 }
